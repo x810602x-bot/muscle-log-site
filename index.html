@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>增肌記錄</title>
+  <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="增肌記錄">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css?v=94d1c11">
+</head>
+<body>
+
+<!-- 登入 -->
+<main id="login" hidden>
+  <form id="login-form" class="card login-card">
+    <img src="icons/icon-192.png" alt="" width="64" height="64">
+    <h1>增肌記錄</h1>
+    <label>Email<input id="login-email" type="email" autocomplete="username" required></label>
+    <label>密碼<input id="login-password" type="password" autocomplete="current-password" minlength="6" required></label>
+    <p id="login-error" class="error" hidden></p>
+    <button class="btn primary">登入</button>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <nav id="tabs" aria-label="分頁">
+    <div class="brand"><img src="icons/icon-192.png" alt="" width="28" height="28">增肌記錄</div>
+    <button data-tab="today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>今日食物</button>
+    <button data-tab="trends"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>歷史</button>
+    <button data-tab="body"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9a4 4 0 0 1 6 0l-2 2.5h-2z"/></svg>身體</button>
+    <button data-tab="foods"><svg viewBox="0 0 24 24"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 13v8M17 3c-2 2-3 5-3 8h3zm0 8v10"/></svg>食物庫</button>
+    <button data-tab="recipes"><svg viewBox="0 0 24 24"><path d="M4 11h16v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM2 11h20M9 7c0-1.5 1-1.5 1-3M14 7c0-1.5 1-1.5 1-3"/></svg>食譜</button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>設定</button>
+  </nav>
+
+  <div id="pages">
+    <!-- 今天 -->
+    <section id="page-today" class="page" hidden>
+      <header class="day-nav">
+        <button id="day-prev" class="icon-btn" aria-label="前一天">‹</button>
+        <button id="day-label" class="day-label"></button>
+        <input id="day-input" type="date" tabindex="-1" aria-hidden="true">
+        <button id="day-next" class="icon-btn" aria-label="後一天">›</button>
+      </header>
+      <!-- 電腦：上面 col-result（測量＋總共）跟 col-input（選食物＋備註）左右並排一樣高，logs 在下面用整個寬度；手機的上下順序用 CSS order 排（見 app.css） -->
+      <div class="today-grid">
+        <div class="col-result">
+          <div id="day-body-block" class="body-block" hidden>
+            <h2>測量記錄</h2>
+            <ul id="day-body" class="list"></ul>
+          </div>
+          <div class="totals-block">
+            <h2 class="totals-head">今天總共<span><button id="totals-help" class="help-btn" type="button" aria-label="這一塊怎麼看">?</button></span></h2>
+            <dl id="totals" class="card totals"></dl>
+            <p id="totals-missing" class="hint" hidden></p>
+          </div>
+        </div>
+        <div class="col-input">
+          <div class="picker">
+            <input id="food-search" type="search" placeholder="搜尋食物…" autocomplete="off">
+            <div id="quick-grid" class="quick-grid"></div>
+          </div>
+          <div class="note-block">
+            <h2>當日備註</h2>
+            <textarea id="day-note" rows="2" placeholder="例如：斷食結束第一天，復食前測量"></textarea>
+          </div>
+        </div>
+        <div class="logs">
+          <h2>已經記的</h2>
+          <ul id="log-list" class="meal-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 歷史 -->
+    <section id="page-trends" class="page wide" hidden>
+      <h1>歷史</h1>
+      <div id="range" class="segmented" role="group" aria-label="期間">
+        <button data-days="30">30 天</button>
+        <button data-days="90">90 天</button>
+        <button data-days="0">全部</button>
+      </div>
+      <div class="card viz-card">
+        <div id="series-toggles" class="series-toggles"></div>
+        <div id="chart-box" class="chart-box"><canvas id="chart"></canvas></div>
+        <p id="chart-empty" class="empty" hidden>這段期間還沒有資料</p>
+      </div>
+      <h2>每日數字 <small>點某一天可以看那天吃了什麼</small></h2>
+      <div class="card table-card"><table id="daily-table"></table></div>
+    </section>
+
+    <!-- 身體 -->
+    <section id="page-body" class="page" hidden>
+      <h1>身體</h1>
+      <button id="import-btn" class="btn primary block">匯入歐姆龍</button>
+      <input id="import-file" type="file" hidden>
+      <p id="import-result" class="notice" hidden></p>
+      <h2>測量記錄</h2>
+      <ul id="body-list" class="list"></ul>
+    </section>
+
+    <!-- 食物 -->
+    <section id="page-foods" class="page" hidden>
+      <div class="title-row"><h1>食物庫</h1><span class="title-actions"><button id="combo-new" class="btn ghost">＋ 組合</button><button id="food-new" class="btn primary">＋ 食物</button></span></div>
+      <p class="hint page-hint">這裡是你的食物清單：新增食物、修改營養和價錢。要記錄今天吃了什麼，請到「今日食物」點食物。</p>
+      <input id="foods-search" type="search" placeholder="搜尋食物…" autocomplete="off">
+      <div id="foods-filter" class="segmented" role="group" aria-label="篩選"></div>
+      <ul id="foods-list" class="list"></ul>
+    </section>
+
+    <!-- 食譜 -->
+    <section id="page-recipes" class="page" hidden>
+      <div class="title-row"><h1>食譜</h1><button id="recipe-new" class="btn primary">＋ 食譜</button></div>
+      <p class="hint page-hint">一個食譜＝一整鍋的材料。存好後食物庫會多一個同名的食物，到「今日食物」點它、填吃了多少就能記錄。</p>
+      <ul id="recipes-list" class="list"></ul>
+    </section>
+
+    <!-- 設定 -->
+    <section id="page-settings" class="page" hidden>
+      <h1>設定</h1>
+      <form id="settings-form" class="card form">
+        <h3>每日標準</h3>
+        <p id="set-weight" class="notice"></p>
+        <p class="hint"><b>標準值</b>：一般成年人的建議量（國健署／國人膳食營養素參考攝取量），依你的體重自動算，不能改。<br><b>目標值</b>：想照自己的狀況吃（例如有在重訓，蛋白質要多一點）就填這裡，有填就以它為準。「每公斤」跟「一天多少」填哪一格都可以，另一格會依你的體重自動算。存的是每公斤，所以之後體重變了，一天多少會跟著變。</p>
+        <div class="table-scroll"><table id="set-targets"></table></div>
+        <button class="btn primary">儲存</button>
+      </form>
+      <button id="logout" class="btn ghost block">登出</button>
+    </section>
+  </div>
+</div>
+
+<!-- 輸入數量 -->
+<dialog id="qty-dialog" class="sheet">
+  <form method="dialog">
+    <h3 id="qty-name"></h3>
+    <div class="qty-row">
+      <input id="qty-input" type="number" inputmode="decimal" step="any" min="0" required>
+      <span id="qty-unit"></span>
+    </div>
+    <div id="qty-items" hidden></div>
+    <label class="qty-time">什麼時候吃的<input id="qty-time" type="time" required></label>
+    <h4 class="qty-info-head">這個份量的完整營養<button id="qty-food" class="btn ghost small" type="button" hidden>食物資料</button></h4>
+    <dl id="qty-preview" class="mini-nutrients"></dl>
+    <div class="actions">
+      <!-- 畫面上由右到左排；「確定」放最前面，按 Enter 才會是它 -->
+      <button id="qty-ok" class="btn primary" value="ok"></button>
+      <button class="btn ghost" value="cancel" formnovalidate>取消</button>
+      <span class="spacer"></span>
+      <button id="qty-delete" class="btn danger" value="delete" formnovalidate hidden>刪除</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 新增／編輯食物 -->
+<dialog id="food-dialog" class="sheet">
+  <form method="dialog" class="form">
+    <h3 id="food-title"></h3>
+    <p id="food-why" class="notice" hidden>這個食物還沒填單位或蛋白質，補完才能記錄。</p>
+    <label>名稱<input id="food-name" required autocomplete="off"></label>
+    <label>記錄單位<input id="food-unit" list="unit-list" placeholder="g、顆、份…" autocomplete="off"></label>
+    <fieldset>
+      <legend id="food-nutrients-title"></legend>
+      <div id="food-nutrients" class="two"></div>
+    </fieldset>
+    <div class="two">
+      <label>在哪邊買<input id="food-store" list="store-list" placeholder="好市多、全聯…" autocomplete="off"></label>
+      <label>買的價錢 ($)<input id="food-paid" type="number" inputmode="decimal" step="any" min="0" placeholder="例如 199"></label>
+    </div>
+    <div class="two">
+      <label>單價 ($)<input id="food-price" type="number" inputmode="decimal" step="any" min="0"></label>
+      <label>單價是每多少<input id="food-price-label" list="price-label-list" placeholder="每KG、每罐…" autocomplete="off"></label>
+    </div>
+    <p id="food-cost-preview" class="hint"></p>
+    <label class="check"><input id="food-supplement" type="checkbox">這是保健品（熱量、蛋白質那些沒填就當 0）</label>
+    <details id="food-micros-box" class="micros-edit">
+      <summary id="food-micros-title"></summary>
+      <div id="food-micros" class="two"></div>
+    </details>
+    <label>備註<textarea id="food-note" rows="2"></textarea></label>
+    <div class="actions">
+      <button class="btn primary" value="ok">儲存</button>
+      <button class="btn ghost" value="cancel" formnovalidate>取消</button>
+      <span class="spacer"></span>
+      <button id="food-archive" class="btn ghost" value="archive" formnovalidate hidden></button>
+    </div>
+  </form>
+  <datalist id="unit-list"><option>g<option>ml<option>顆<option>匙<option>份<option>罐<option>包<option>片<option>條<option>支</datalist>
+  <datalist id="store-list"><option>好市多<option>全聯<option>家樂福<option>市場</datalist>
+  <datalist id="price-label-list"><option>每KG<option>每公升<option>每顆<option>每匙<option>每份<option>每罐<option>每包<option>每片<option>每條<option>每支</datalist>
+</dialog>
+
+<!-- 「今天總共」怎麼看 -->
+<dialog id="help-dialog" class="sheet">
+  <form method="dialog" class="help">
+    <h3>這一塊怎麼看</h3>
+    <p>每一格上面的大數字是<b>今天吃到的量</b>，下面的小字是跟<b>每日標準</b>比的結果。越重要的排越前面。</p>
+    <ul>
+      <li><span class="gap more">綠色</span>：吃越多越好，至少要吃到標準（蛋白質、纖維、維生素、礦物質…）。顯示「還差多少」或「已達標」。</li>
+      <li><span class="gap less">紅色</span>：吃越少越好，標準是<b>上限</b>（鈉、飽和脂肪、糖、反式脂肪）。顯示「還剩多少」，超過會變粗體。</li>
+      <li><span class="gap">灰色</span>：盡量接近標準就好，太多太少都不好（熱量、脂肪、碳水）。</li>
+      <li>「—」：今天記的食物都沒有這一項的資料，不代表吃到 0。</li>
+      <li>最後幾項（澱粉、EPA、DHA、葉黃素、花青素、肌醇）沒有官方標準，只顯示吃了多少。</li>
+    </ul>
+    <p class="hint">標準怎麼來：熱量、蛋白質這些是一般成年人的建議量，依歐姆龍最新體重自動算；想照自己的狀況吃，到「設定」填目標值；維生素、礦物質用國人膳食營養素參考攝取量（成年男性）。食物的維生素、礦物質多半是估計值，看個大概就好。</p>
+    <div class="actions"><button class="btn primary">知道了</button></div>
+  </form>
+</dialog>
+
+<!-- 新增／編輯組合 -->
+<dialog id="combo-dialog" class="sheet">
+  <form method="dialog" class="form">
+    <h3 id="combo-title"></h3>
+    <label>名稱<input id="combo-name" required autocomplete="off" placeholder="例如：池上控肉便當"></label>
+    <div id="combo-items"></div>
+    <input id="combo-food-search" list="combo-food-list" placeholder="輸入食物名稱，從清單選一個加進來…" autocomplete="off">
+    <datalist id="combo-food-list"></datalist>
+    <!-- 只有食譜才有：這鍋煮出來多少 -->
+    <div id="recipe-yield" class="two" hidden>
+      <label>這鍋煮出來多少<input id="recipe-yield-qty" type="number" inputmode="decimal" step="any" min="0.1" placeholder="煮好秤整鍋，或填分幾份"></label>
+      <label>單位<input id="recipe-yield-unit" list="yield-unit-list" placeholder="g、份、碗" autocomplete="off"></label>
+      <datalist id="yield-unit-list"><option>g<option>份<option>碗</datalist>
+    </div>
+    <h4 id="combo-preview-title"></h4>
+    <dl id="combo-preview" class="mini-nutrients"></dl>
+    <h4 id="recipe-unit-title" hidden></h4>
+    <dl id="recipe-unit-preview" class="mini-nutrients" hidden></dl>
+    <div class="actions">
+      <button class="btn primary" value="ok">儲存</button>
+      <button class="btn ghost" value="cancel" formnovalidate>取消</button>
+      <span class="spacer"></span>
+      <button id="combo-archive" class="btn ghost" value="archive" formnovalidate hidden></button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script type="module" src="js/app.js?v=94d1c11"></script>
+</body>
+</html>
